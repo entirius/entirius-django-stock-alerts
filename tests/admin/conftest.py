@@ -4,6 +4,7 @@
 """Admin API fixtures: a catalogue with names and a size, request rows saved directly, staff clients with a JWT."""
 
 import itertools
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -37,6 +38,14 @@ def make_row(**overrides) -> Subscription:
         "consent_text": "Email me when it is back.",
     }
     return Subscription.objects.create(**{**fields, **overrides})
+
+
+@pytest.fixture
+def quantities():
+    """Saleable quantity per SKU as matrix reports it for the admin reads; a SKU left out counts as 0."""
+    stock: dict[str, int] = {}
+    with patch("django_stock_alerts.services.admin_queries.get_quantities", side_effect=lambda skus, _: stock):
+        yield stock
 
 
 def _language(iso2: str) -> Language:

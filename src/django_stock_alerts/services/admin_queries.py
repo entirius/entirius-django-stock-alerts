@@ -17,10 +17,11 @@ from django.db.models import Count, Max, Min, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from django_matrix.enums import FeatureType, ProductType
 from django_matrix.models import Attribute, Channel, ProductRepresentation, ProductT9N
+from django_matrix.services.stock_service import get_quantities
 
 from django_stock_alerts.enums import CancelReason, Status
 from django_stock_alerts.models import Subscription
-from django_stock_alerts.services import catalog, subscription_service
+from django_stock_alerts.services import subscription_service
 
 NOTIFIED_WINDOW = timedelta(days=30)
 _VARIANT_FEATURE_TYPES = (FeatureType.SELECT, FeatureType.MULTISELECT)
@@ -91,7 +92,7 @@ def subscriptions(channel_idx: str, filters: SubscriptionFilters) -> QuerySet:
 
 def quantities(channel_idx: str, skus: list[str]) -> dict[str, int]:
     """Saleable pieces per SKU; a SKU without stock data is 0."""
-    found = catalog.get_quantities(skus, channel_idx) if skus else {}
+    found = get_quantities(skus, channel_idx) if skus else {}
     return {sku: found.get(sku, 0) for sku in skus}
 
 
