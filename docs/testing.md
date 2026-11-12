@@ -29,5 +29,13 @@ In the entirius-zeno harness: `make module-test MODULE=entirius-django-stock-ale
   carries the token; parity of the token with `django_leads`.
 - `test_checks.py` — templates without their placeholder, waiting channel without templates, unpublished agreement.
 - `test_openapi.py` — `spectacular --validate --fail-on-warn`.
+- `admin/test_demand.py` — aggregation per SKU, only waiting rows, the 30-day notified window, quantity (missing = 0),
+  default and allowed orderings, search by SKU prefix and name, pagination, bad ordering 400, query count independent
+  of the page size, other channels left out.
+- `admin/test_subscriptions.py` — row shape, each filter, exact-address search (no substring), ordering, bad ordering
+  400, other channels never shown; cancel: waiting → `admin`, closed row unchanged, other channel 404.
+- `admin/test_export.py` — header, filters, formula guard, the token of an anonymised row.
+- `admin/test_auth.py` — 401 without a token, 403 for non-staff; with access: 403 without the area, read-only staff
+  read but cannot cancel (the gate middleware is on in `tests/settings.py` when access is importable).
 - `test_access_ownership.py` — every admin route covered by the module's own access declarations.
 - `test_migrations.py` — no model change without a migration.

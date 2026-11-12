@@ -17,4 +17,8 @@ First version: requests, public API, consent, GDPR.
   a new request, withdrawal on the person's cancel or erasure.
 - **Checks** — templates without their placeholder (error), waiting channels without templates and an unpublished
   agreement (warnings).
+- **Admin API** — `api/stock-alerts/v2/admin/<channel_idx>/`: `demand/` (waiting requests per variant with the
+  stock now and the notified count of 30 days), `subscriptions/` (filters, exact-address search), `subscriptions/export/`
+  (streamed CSV, formula guard), `subscriptions/<id>/cancel/` (reason `admin`); JWT, `IsAdminUser`, area
+  `stock_alerts.subscriptions`; orderings by allowlist.
 - **GDPR** — `gdpr_export`, `gdpr_erase` (address → the platform's anonymised token, waiting rows cancelled).
