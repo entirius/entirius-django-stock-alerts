@@ -1,0 +1,38 @@
+[
+  {
+    "model": "django_agreements.agreementdefinition",
+    "pk": 700,
+    "fields": {
+      "slug": "stock-alerts",
+      "name": "Back-in-stock alert",
+      "category": "informational",
+      "consent_channel": "email",
+      "content_route": "",
+      "is_active": true,
+      "is_system": true,
+      "display_contexts": [],
+      "sort_order": 70,
+      "channels": [],
+      "created_at": "2026-11-12T00:00:00Z",
+      "modified_at": "2026-11-12T00:00:00Z"
+    }
+  },
+  {
+    "model": "django_agreements.agreementversion",
+    "pk": 700,
+    "fields": {
+      "definition": 700,
+      "version_number": 1,
+      "summary_t9n": {
+        "en": "Email me once when this product is back in stock. I can cancel the alert with the link in every email.",
+        "pl": "Wyślij mi jednorazowo e-mail, gdy ten produkt wróci do sprzedaży. Powiadomienie mogę anulować linkiem w każdym e-mailu."
+      },
+      "content_published_id": null,
+      "published_at": "2026-11-12T00:00:00Z",
+      "is_current": true,
+      "cookie_banner": {},
+      "created_at": "2026-11-12T00:00:00Z",
+      "modified_at": "2026-11-12T00:00:00Z"
+    }
+  }
+]
