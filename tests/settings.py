@@ -42,6 +42,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
 ]
+if find_spec("django_access"):  # the gate decides the admin area per request (tests/test_admin_auth.py)
+    MIDDLEWARE.append("django_access.middleware.AccessGateMiddleware")
 ROOT_URLCONF = "tests.urls"
 TEMPLATES = [
     {
