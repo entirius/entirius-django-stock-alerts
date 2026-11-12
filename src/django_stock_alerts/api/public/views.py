@@ -12,6 +12,7 @@ import ipaddress
 import logging
 import uuid
 
+from django.db import transaction
 from django_utils.api.client_ip import get_client_ip
 from django_utils.api.v2_errors import ErrorResponse, raise_pydantic_as_drf
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -23,12 +24,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django_stock_alerts import settings as stock_settings
 from django_stock_alerts.api.public.authentication import HasSubscribeKey, SubscribeKeyAuthentication
 from django_stock_alerts.api.public.throttling import CancelThrottle, SubscribeAddressThrottle, SubscribeThrottle
 from django_stock_alerts.schemas.requests import CancelRequest, SubscribeRequest
 from django_stock_alerts.schemas.responses import CancelResponse, SubscribeResponse
 from django_stock_alerts.services import subscription_service, token_service
 from django_stock_alerts.services.subscription_service import SubscribeData
+from django_stock_alerts.tasks.send import send_signup
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +126,15 @@ class SubscribeView(APIView):
             logger.info("stock alerts: honeypot request dropped")
             return _saved()
         try:
-            subscription_service.subscribe(_subscribe_data(request, channel_idx, body))
+            row, created = subscription_service.subscribe(_subscribe_data(request, channel_idx, body))
         except subscription_service.ProductNotFound:
             raise NotFound("Unknown SKU.") from None
         except subscription_service.InStock:
             raise InStockConflict from None
         except subscription_service.TooManyRequests:
             return _too_many()
+        if created and stock_settings.SIGNUP_EMAIL:
+            transaction.on_commit(lambda: send_signup.delay(row.pk))
         return _saved()
 
 

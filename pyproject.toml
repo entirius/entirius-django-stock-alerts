@@ -27,6 +27,9 @@ dependencies = [
     "pydantic[email]>=2.0",
     "entirius-django-utils>=2.4.0",
     "entirius-django-matrix>=4.5.0",
+    # The stock-alert emails land in the email release after 4.3.0: the floor follows it at this module's release.
+    "entirius-django-email>=4.3.0",
+    "celery>=5.3",
 ]
 
 [project.optional-dependencies]
