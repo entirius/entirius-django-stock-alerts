@@ -13,7 +13,7 @@ class DjangoStockAlertsConfig(AppConfig):
     label = "django_stock_alerts"
     verbose_name = "Back-in-stock alerts"
     is_volkanos = True
-    # The admin API (a later release) carries this area on every view; no route needs a path rule.
+    # Every admin view (api/admin/) carries this area; no route needs a path rule.
     access_areas = [
         {"key": "stock_alerts.subscriptions", "label": "Back-in-stock requests", "sensitive": ("pii",)},
     ]
