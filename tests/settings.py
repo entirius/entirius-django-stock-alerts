@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django_regional",
     "django_pim",  # django_matrix models import it
     "django_matrix",
+    "django_email",
     "django_stock_alerts",
 ]
 WITH_AGREEMENTS = not os.environ.get("STOCK_ALERTS_TEST_NO_AGREEMENTS")

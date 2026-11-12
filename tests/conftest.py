@@ -40,7 +40,10 @@ def products(db):
 def quantities():
     """Saleable quantity per SKU, as matrix reports it; a SKU left out counts as 0."""
     stock: dict[str, int] = {}
-    with patch("django_stock_alerts.services.catalog.get_quantities", side_effect=lambda skus, _: stock):
+    with patch(
+        "django_stock_alerts.services.catalog.get_quantities",
+        side_effect=lambda skus, _: {sku: stock[sku] for sku in skus if sku in stock},
+    ):
         yield stock
 
 
@@ -111,3 +114,41 @@ def cancel_url(channel_idx: str = CHANNEL_IDX) -> str:
 def agreement_if_installed(db):
     if WITH_AGREEMENTS:
         call_command("loaddata", "stock_alerts_agreement", verbosity=0)
+
+
+@pytest.fixture
+def mailbox(db, settings):
+    """django_email channel of the matrix channel (same idx), languages, and the locmem outbox."""
+    from django.core import mail
+    from django_email.models import Channel as EmailChannel
+    from django_email.models import LangChannelConfig
+    from django_regional.models import Language
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    channel = EmailChannel.objects.create(idx=CHANNEL_IDX, label="Europe", from_email="shop@example.com")
+    LangChannelConfig.objects.create(channel=channel, language=None, shop_name="Sample Shop")
+    for iso2 in ("pl", "en"):
+        Language.objects.get_or_create(
+            iso2=iso2, defaults={"iso3": f"{iso2}x", "name_en": iso2, "name_pl": iso2, "name_source": iso2}
+        )
+    mail.outbox = []
+    return mail.outbox
+
+
+def make_row(**overrides):
+    """A waiting request saved directly (no consent bridge, no stock read)."""
+    from django.utils import timezone
+
+    from django_stock_alerts.models import Subscription
+
+    fields = {
+        "channel_idx": CHANNEL_IDX,
+        "sku": SKU,
+        "parent_sku": PARENT_SKU,
+        "email": EMAIL,
+        "language": "en",
+        "country": "pl",
+        "consent_at": timezone.now(),
+        "consent_text": "Email me when it is back.",
+    }
+    return Subscription.objects.create(**{**fields, **overrides})
