@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from django_matrix.enums import FeatureType
 from django_matrix.models import Attribute, ProductPrice, ProductRepresentation, ProductT9N
-from django_regional.models import Currency, Language
+from django_regional.models import Country, Currency, Language
 
 from django_stock_alerts import settings as stock_settings
 from django_stock_alerts.services import catalog, token_service
@@ -124,3 +124,28 @@ def test_cancel_url_carries_a_readable_token(products):
     token = parse_qs(urlsplit(url).query)["token"][0]
     assert url.startswith("https://shop.example/pl/stock-alert/cancel?token=")
     assert token_service.read(token) == row
+
+
+def test_multiselect_value_is_joined(catalogue):
+    Attribute.objects.create(
+        product=catalogue,
+        feature_idx="colour",
+        feature_type=FeatureType.MULTISELECT,
+        feature_name_t9n={"en": "Colour"},
+        attribute_idx="rb",
+        attribute_value_json=["red", "blue"],
+        linking=True,
+    )
+
+    assert catalog.describe(CHANNEL_IDX, SKU, "en").variant_line == "Size: M, Colour: red, blue"
+
+
+def test_price_of_the_request_country(catalogue):
+    pln = Currency.objects.get(iso3="PLN")
+    de, _ = Country.objects.get_or_create(
+        iso2="DE", defaults={"iso3": "DEU", "name_en": "Germany", "name_pl": "Niemcy"}
+    )
+    ProductPrice.objects.create(product_representation=catalogue, currency=pln, country=de, final_gross=Decimal("99"))
+
+    assert catalog.describe(CHANNEL_IDX, SKU, "en", "de").price == "99.00"
+    assert catalog.describe(CHANNEL_IDX, SKU, "en", "fr").price == "129.00"

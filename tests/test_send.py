@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import threading
 import time
+from datetime import timedelta
 from smtplib import SMTPException
 from unittest.mock import patch
 
@@ -12,6 +13,7 @@ from django.utils import timezone
 from django_email.service.stock_alerts.available import StockAlertAvailableEmail
 
 from django_stock_alerts.enums import CancelReason, Status
+from django_stock_alerts.tasks.check import check
 from django_stock_alerts.tasks.send import RETRY_COUNTDOWNS, send_alert
 
 from .conftest import SKU, make_row
@@ -143,3 +145,29 @@ def test_two_concurrent_tasks_send_one_message(claimed, quantities, mailbox):
 
     assert sorted(results) == ["notified", "skipped"]
     assert len(mailbox) == 1
+
+
+def test_a_scheduled_retry_keeps_the_row_out_of_the_next_waves(claimed, quantities):
+    quantities[SKU] = 1
+    with patch(SMTP_SEND, side_effect=OSError("refused")), patch.object(send_alert, "retry") as retry:
+        retry.side_effect = RuntimeError("retry scheduled")
+        with pytest.raises(RuntimeError):
+            send_alert(claimed.pk)
+
+    claimed.refresh_from_db()
+    assert claimed.wave_claimed_at > timezone.now() + timedelta(seconds=RETRY_COUNTDOWNS[0] - 5)
+    with patch("django_stock_alerts.tasks.send.send_alert.delay") as delay:
+        check()
+    delay.assert_not_called()
+
+
+def test_a_configuration_error_keeps_the_request_waiting(products, quantities):
+    """No django_email channel: the task fails loudly; the row waits and the next wave tries again."""
+    row = make_row(wave_claimed_at=timezone.now())
+    quantities[SKU] = 1
+
+    with pytest.raises(ValueError):
+        send_alert(row.pk)
+
+    row.refresh_from_db()
+    assert (row.status, row.send_attempts) == (Status.WAITING, 0)

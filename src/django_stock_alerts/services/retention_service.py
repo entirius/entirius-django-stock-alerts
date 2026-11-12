@@ -34,7 +34,10 @@ def _expire(now: datetime) -> int:
     stale = Subscription.objects.filter(status=Status.WAITING, created_at__lt=cutoff)
     total = 0
     while pks := list(stale.values_list("pk", flat=True)[:BATCH]):
-        total += Subscription.objects.filter(pk__in=pks).update(status=Status.EXPIRED, modified_at=now)
+        # Status again in the UPDATE: a send task may have notified a row since the SELECT.
+        total += Subscription.objects.filter(pk__in=pks, status=Status.WAITING).update(
+            status=Status.EXPIRED, modified_at=now
+        )
     return total
 
 

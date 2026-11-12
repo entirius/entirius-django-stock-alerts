@@ -9,6 +9,7 @@ longer `waiting` sends nothing. The email goes out inside that lock, so a second
 """
 
 import logging
+from datetime import timedelta
 from smtplib import SMTPException
 
 from django.db import transaction
@@ -39,7 +40,7 @@ def send_alert(subscription_id: int) -> str:
         if catalog.saleable_quantity(row.channel_idx, row.sku) < 1:
             _release_claim(row)
             return "sold_out"
-        card = catalog.describe(row.channel_idx, row.sku, row.language)
+        card = catalog.describe(row.channel_idx, row.sku, row.language, row.country)
         if card is None:
             subscription_service.cancel(row, CancelReason.UNDELIVERABLE)
             return "undeliverable"
@@ -61,10 +62,16 @@ def record_failed_delivery(subscription_id: int) -> None:
     logger.warning("stock alerts: request %s alert delivery failed (attempt %s)", row.pk, row.send_attempts)
 
 
+def hold_claim(subscription_id: int, seconds: int) -> None:
+    """Move the wave claim `seconds` ahead (a scheduled retry), so the check does not start a second retry chain."""
+    claimed_until = timezone.now() + timedelta(seconds=seconds)
+    Subscription.objects.filter(pk=subscription_id, status=Status.WAITING).update(wave_claimed_at=claimed_until)
+
+
 def send_signup(subscription_id: int) -> None:
     """The "we will notify you" email of a waiting request; it never changes the row."""
     row = Subscription.objects.filter(pk=subscription_id, status=Status.WAITING).first()
-    card = row and catalog.describe(row.channel_idx, row.sku, row.language)
+    card = row and catalog.describe(row.channel_idx, row.sku, row.language, row.country)
     if card:
         _send(StockAlertSignupEmail, row, card)
 

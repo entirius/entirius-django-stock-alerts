@@ -68,9 +68,12 @@ lock, so a parallel task waits and then sees `notified`.
 
 ## Delivery failures
 
-SMTP and socket errors are retried after 2, 10 and 30 minutes. After the last retry the row's `send_attempts`
+SMTP and socket errors are retried after 2, 10 and 30 minutes; each scheduled retry moves the row's claim past its
+run, so no check starts a second retry chain meanwhile. After the last retry the row's `send_attempts`
 grows and its claim is cleared, so a later wave tries again; the second such failure closes the row as
-`cancelled / undeliverable`. A variant gone from the channel closes it the same way, without a send.
+`cancelled / undeliverable`. A variant gone from the channel closes it the same way, without a send. Any other
+error (no django_email channel for the idx, a broken template) is a configuration fault, not the address's: the task
+fails, the row keeps waiting, and the next wave after the claim tries again.
 
 ## Retention
 

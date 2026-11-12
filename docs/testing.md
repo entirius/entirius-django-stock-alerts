@@ -31,13 +31,14 @@ In the entirius-zeno harness: `make module-test MODULE=entirius-django-stock-ale
 - `test_openapi.py` — `spectacular --validate --fail-on-warn`.
 - `test_access_ownership.py` — every admin route covered by the module's own access declarations.
 - `test_catalog.py` — the email card in a language (parent name, variant line, picture ≥ 240 px, price of the
-  channel currency), fallbacks without data, product gone, bounded queries; URL builders: quoting, no `{country}`.
+  channel currency and the request's country), multiselect values, fallbacks without data, product gone, bounded queries; URL builders: quoting, no `{country}`.
 - `test_check.py` — no waiting rows → no quantity query; sold out → nothing; quantity × factor oldest first, the next
   run skips claimed rows; stale claim; factor 0; channel without templates; batches; lock; log line; queries
   independent of the number of people.
 - `test_send.py` — alert sent once and `notified`; already notified; sold out again (claim cleared); product gone;
-  SMTP retry and countdowns; retries exhausted twice → `undeliverable`; two concurrent tasks → one message.
+  SMTP retry and countdowns; a scheduled retry holds the claim; retries exhausted twice → `undeliverable`; two
+  concurrent tasks → one message; a configuration error keeps the row waiting.
 - `test_signup_email.py` — created request → one signup email; repeated request → none; setting off; a failed send
   leaves the row.
-- `test_retention.py` — expiry at the boundary; anonymisation of closed rows past the period only; batches.
+- `test_retention.py` — expiry at the boundary and in batches; anonymisation of closed rows past the period only.
 - `test_migrations.py` — no model change without a migration.

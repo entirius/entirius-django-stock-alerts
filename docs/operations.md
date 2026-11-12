@@ -46,5 +46,11 @@ Rows already `notified` are never sent again.
 | `cancelled / erased` | GDPR erasure |
 | `expired` | waited longer than `STOCK_ALERTS_WAITING_DAYS` |
 
+A configuration fault (no django_email channel with the matrix channel's idx, a missing template) fails the send task
+in the worker log and leaves the row `waiting`; every wave retries it until the fault is fixed. It never closes the
+request.
+
+The alert's price is the channel's default currency, the row of the request's country when matrix has one.
+
 A worker must consume `stock_alerts`; without it the check enqueues alerts that wait in the broker and are sent
 when a worker starts (each re-checks the stock first).

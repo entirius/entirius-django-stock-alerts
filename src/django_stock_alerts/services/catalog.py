@@ -55,8 +55,11 @@ def quantities(channel_idx: str, skus: list[str]) -> dict[str, int]:
     return get_quantities(skus, channel_idx)
 
 
-def describe(channel_idx: str, sku: str, language: str) -> ProductCard | None:
-    """What the email shows; `None` when the variant is gone from the channel. A fixed number of queries."""
+def describe(channel_idx: str, sku: str, language: str, country: str = "") -> ProductCard | None:
+    """What the email shows; `None` when the variant is gone from the channel. A fixed number of queries.
+
+    Price: the channel's default currency, the row of `country` (iso2) when there is one, else the one without a
+    country, else the first."""
     t9ns = ProductT9N.objects.filter(language__iso2=language)
     variant_attributes = Attribute.objects.filter(linking=True, feature_type__in=_VARIANT_FEATURE_TYPES).order_by("pk")
     row = (
@@ -70,7 +73,7 @@ def describe(channel_idx: str, sku: str, language: str) -> ProductCard | None:
         )
         .first()
     )
-    return None if row is None else _card(row, language)
+    return None if row is None else _card(row, language, country)
 
 
 def product_url(subscription: Subscription, url_key: str) -> str:
@@ -95,12 +98,12 @@ def _sellable(channel_idx: str, sku: str) -> QuerySet:
 
 def _prices_of_default_currency() -> QuerySet:
     prices = ProductPrice.objects.filter(currency_id=F("product_representation__channel__default_currency_id"))
-    return prices.select_related("currency").order_by("country_id", "pk")
+    return prices.select_related("currency", "country").order_by(F("country_id").asc(nulls_first=True), "pk")
 
 
-def _card(row: ProductRepresentation, language: str) -> ProductCard:
+def _card(row: ProductRepresentation, language: str, country: str) -> ProductCard:
     own, parent = _t9n(row), _t9n(row.parent) if row.parent else None
-    price = next(iter(row.prices.all()), None)
+    price = _price_for(row.prices.all(), country)
     money = _money(price)
     return ProductCard(
         name=(parent and parent.name) or (own and own.name) or row.sku,
@@ -112,17 +115,27 @@ def _card(row: ProductRepresentation, language: str) -> ProductCard:
     )
 
 
+def _price_for(prices: list, country: str) -> ProductPrice | None:
+    of_country = [p for p in prices if p.country and p.country.iso2.lower() == country.lower()]
+    return next(iter(of_country or prices), None)
+
+
 def _t9n(row: ProductRepresentation) -> ProductT9N | None:
     return next(iter(row.t9ns.all()), None)
 
 
 def _variant_line(row: ProductRepresentation, language: str) -> str | None:
     parts = [
-        f"{(attribute.feature_name_t9n or {}).get(language) or attribute.feature_idx}: {value}"
+        f"{(attribute.feature_name_t9n or {}).get(language) or attribute.feature_idx}: {_text(value)}"
         for attribute in row.attributes.all()
         if (value := attribute.attribute_value(language))
     ]
     return ", ".join(parts) or None
+
+
+def _text(value: object) -> str:
+    """A multiselect value comes as a list from the JSON column."""
+    return ", ".join(map(str, value)) if isinstance(value, list) else str(value)
 
 
 def _image_path(main_image: dict | None) -> str | None:

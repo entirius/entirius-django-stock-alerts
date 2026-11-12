@@ -30,7 +30,10 @@ def send_alert(self, subscription_id: int) -> str:
         if self.request.retries >= self.max_retries:
             alert_service.record_failed_delivery(subscription_id)
             return "failed"
-        raise self.retry(exc=exc, countdown=RETRY_COUNTDOWNS[self.request.retries]) from exc
+        countdown = RETRY_COUNTDOWNS[self.request.retries]
+        # The retries outlast a 30-minute claim: keep the row out of the next waves until this retry has run.
+        alert_service.hold_claim(subscription_id, countdown)
+        raise self.retry(exc=exc, countdown=countdown) from exc
 
 
 @shared_task(name="django_stock_alerts.send_signup", **_TASK_OPTIONS)

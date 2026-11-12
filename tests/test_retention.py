@@ -66,3 +66,13 @@ def test_anonymised_rows_are_not_touched_again(db, monkeypatch):
 
     assert retention_service.run_retention().anonymised == 5
     assert retention_service.run_retention().anonymised == 0
+
+
+def test_expiry_runs_in_batches(db, monkeypatch):
+    monkeypatch.setattr(retention_service, "BATCH", 2)
+    edge = timezone.now() - stock_settings.WAITING_DAYS * DAY
+    for i in range(5):
+        aged(make_row(email=f"w{i}@example.com"), created_at=edge - MINUTE)
+
+    assert retention_service.run_retention().expired == 5
+    assert Subscription.objects.filter(status=Status.EXPIRED).count() == 5
