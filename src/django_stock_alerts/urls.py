@@ -6,4 +6,7 @@
 
 from django.urls import include, path
 
-urlpatterns = [path("api/stock-alerts/v2/", include("django_stock_alerts.api.public.urls"))]
+urlpatterns = [
+    path("api/stock-alerts/v2/admin/", include("django_stock_alerts.api.admin.urls")),
+    path("api/stock-alerts/v2/", include("django_stock_alerts.api.public.urls")),
+]

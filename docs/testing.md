@@ -29,5 +29,24 @@ In the entirius-zeno harness: `make module-test MODULE=entirius-django-stock-ale
   carries the token; parity of the token with `django_leads`.
 - `test_checks.py` — templates without their placeholder, waiting channel without templates, unpublished agreement.
 - `test_openapi.py` — `spectacular --validate --fail-on-warn`.
+- `admin/test_demand.py` — aggregation per SKU, only waiting rows, the 30-day notified window, quantity (missing = 0),
+  default and allowed orderings, search by SKU prefix and name, pagination, bad ordering 400, query count independent
+  of the page size, other channels left out.
+- `admin/test_subscriptions.py` — row shape, each filter, exact-address search (no substring), ordering, bad ordering
+  400, other channels never shown; cancel: waiting → `admin`, closed row unchanged, other channel 404.
+- `admin/test_export.py` — header, filters, formula guard, the token of an anonymised row.
+- `admin/test_auth.py` — 401 without a token, 403 for non-staff; with access: 403 without the area, read-only staff
+  read but cannot cancel (the gate middleware is on in `tests/settings.py` when access is importable).
 - `test_access_ownership.py` — every admin route covered by the module's own access declarations.
+- `test_catalog.py` — the email card in a language (parent name, variant line, picture ≥ 240 px, price of the
+  channel currency and the request's country), multiselect values, fallbacks without data, product gone, bounded queries; URL builders: quoting, no `{country}`.
+- `test_check.py` — no waiting rows → no quantity query; sold out → nothing; quantity × factor oldest first, the next
+  run skips claimed rows; stale claim; factor 0; channel without templates; batches; lock; log line; queries
+  independent of the number of people.
+- `test_send.py` — alert sent once and `notified`; already notified; sold out again (claim cleared); product gone;
+  SMTP retry and countdowns; a scheduled retry holds the claim; retries exhausted twice → `undeliverable`; two
+  concurrent tasks → one message; a configuration error keeps the row waiting.
+- `test_signup_email.py` — created request → one signup email; repeated request → none; setting off; a failed send
+  leaves the row.
+- `test_retention.py` — expiry at the boundary and in batches; anonymisation of closed rows past the period only.
 - `test_migrations.py` — no model change without a migration.

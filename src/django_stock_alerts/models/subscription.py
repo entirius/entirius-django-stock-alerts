@@ -28,6 +28,9 @@ class Subscription(BaseModel):
     cancel_reason = models.CharField(max_length=16, choices=CancelReason.choices, blank=True, default="")
     send_attempts = models.PositiveSmallIntegerField(default=0, help_text="Failed deliveries of the alert")
     anonymised_at = models.DateTimeField(null=True, blank=True)
+    wave_claimed_at = models.DateTimeField(
+        null=True, blank=True, help_text="Set when a restock wave enqueued the alert; a fresh claim is not taken again"
+    )
 
     class Meta:
         ordering = ["-created_at"]

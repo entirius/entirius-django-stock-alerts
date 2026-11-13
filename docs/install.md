@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Wiring the module into an Entirius service.
+description: Wiring the module into an Entirius service: apps, URLs, Celery, emails, settings, key, throttles.
 ---
 
 ## Apps and URLs
@@ -12,6 +12,34 @@ urlpatterns += [path("", include("django_stock_alerts.urls"))]  # api/stock-aler
 
 `python manage.py migrate django_stock_alerts`.
 
+## Celery: queue and beat
+
+The check, send and retention tasks run on the queue `stock_alerts`: route a worker to it
+(`celery -A main worker -Q stock_alerts,…`). Beat entries:
+
+```python
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE["stock-alerts-check"] = {"task": "django_stock_alerts.check", "schedule": 300.0}
+CELERY_BEAT_SCHEDULE["stock-alerts-retention"] = {
+    "task": "django_stock_alerts.retention",
+    "schedule": crontab(hour=3, minute=30),
+}
+```
+
+`STOCK_ALERTS_SEND_RATE` is a Celery `rate_limit`: per worker process, not global. The default assumes one worker
+process on the queue; with `-c 4` the stack sends up to four times the rate.
+
+The check holds a lock in the Django cache (`django_stock_alerts:check`, 4 minutes): the cache must be shared by
+every worker (Redis), or two beats could overlap.
+
+## Emails
+
+Both emails come from `entirius-django-email` (`StockAlertSignupEmail`, `StockAlertAvailableEmail`), sent through
+the django_email channel whose idx is the matrix channel idx. Their wording is edited there (admin API slugs
+`stock-alerts-signup` / `stock-alerts-available`). Product pictures are matrix media paths: set
+`EMAIL_MEDIA_BASE_URL` (the origin that serves `/media/…`), or the emails go out without a picture.
+
 ## Settings
 
 All read at import from Django settings of the same name (`src/django_stock_alerts/settings.py`).
@@ -22,11 +50,11 @@ All read at import from Django settings of the same name (`src/django_stock_aler
 | `STOCK_ALERTS_CANCEL_URL` | `{}` | per channel idx: `https://shop.example/{country}/stock-alert/cancel?token={token}` |
 | `STOCK_ALERTS_WAVE_FACTOR` | `5` | people invited per available piece and wave; `0` = everyone |
 | `STOCK_ALERTS_CHECK_BATCH` | `500` | SKUs per quantity query |
-| `STOCK_ALERTS_SEND_RATE` | `"120/m"` | Celery rate limit of the send task |
+| `STOCK_ALERTS_SEND_RATE` | `"120/m"` | Celery rate limit of the send tasks, per worker process |
 | `STOCK_ALERTS_MAX_WAITING_PER_EMAIL` | `20` | waiting requests per address and channel |
 | `STOCK_ALERTS_WAITING_DAYS` | `180` | a request expires after |
 | `STOCK_ALERTS_ANONYMISE_DAYS` | `30` | closed rows keep the address this long |
-| `STOCK_ALERTS_SIGNUP_EMAIL` | `True` | send the "we will notify you" email |
+| `STOCK_ALERTS_SIGNUP_EMAIL` | `True` | send the "we will notify you" email after a new request |
 | `STOCK_ALERTS_AGREEMENT_SLUG` | `"stock-alerts"` | agreement definition of the consent record in `django_agreements`; `None` switches the record off |
 | `LEADS_ANONYMISED_DOMAIN` | `"anonymised.invalid"` | domain of the anonymised address token (shared with leads and agreements) |
 

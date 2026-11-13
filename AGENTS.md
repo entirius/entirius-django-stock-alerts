@@ -15,7 +15,7 @@ saves a request for a sold-out variant, the person is emailed once when it can b
 ## Conventions
 
 - English only; MPL-2.0 header on every `.py` (`insert-license`); no Claude attribution trailers in commits or PRs.
-- Layered: `models/` · `services/` · `schemas/` · `api/public/`. No logic in models, no ORM in views.
+- Layered: `models/` · `services/` · `schemas/` · `api/public/` · `api/admin/`. No logic in models, no ORM in views.
 - Never rename the package, the app label or the table prefix; never edit a released migration.
 - Soft dependencies `django_access` and `django_agreements`: imported lazily, never at module import time, no FK.
   The suite runs with agreements and without (`STOCK_ALERTS_TEST_NO_AGREEMENTS=1`).
@@ -32,10 +32,14 @@ Read first: `docs/install.md` (host) · `docs/api.md` (caller) · `docs/concept.
 src/django_stock_alerts/
 ├── apps.py (access areas, token scope)  enums.py  settings.py (read at import)  checks.py  gdpr.py  admin.py  urls.py
 ├── models/        subscription.py (partial unique index: one waiting row per channel, sku, email)
-├── schemas/       requests.py  responses.py
+├── schemas/       requests.py  responses.py  admin.py (admin queries and rows; the ordering allowlists)
 ├── services/      subscription_service (subscribe, cancel: the only writer)  token_service (signed cancel link)
-│                  catalog (the only reader of django_matrix)  consent_bridge (the only importer of django_agreements)
+│                  catalog (the only reader of django_matrix; email card, links)  consent_bridge (the only importer of django_agreements)
+│                  check_service (restock waves)  alert_service (alert + signup sends)  retention_service
+│                  admin_queries (the panel's reads; reads matrix names itself, one batch per page; admin cancel)
+├── tasks/         check (beat, cache lock)  send (send_alert, send_signup)  retention (beat, daily) — queue stock_alerts
 ├── api/public/    views.py  throttling.py  authentication.py (channel key)  urls.py
+├── api/admin/     views.py (demand, list, CSV export, cancel)  urls.py
 └── fixtures/      stock_alerts_agreement.json (agreement definition, loaded once by a host)
 ```
 
@@ -44,7 +48,9 @@ src/django_stock_alerts/
 | A setting's name, default, meaning | `settings.py`; the table in `docs/install.md` |
 | Host wiring: apps, URLs, key, throttles, agreement fixture | `docs/install.md` |
 | Request / response shape, errors | `docs/api.md`; `schemas/` |
-| Consent records, uniqueness, GDPR — why | `docs/concept.md` |
+| Consent records, uniqueness, GDPR, polling, waves, retention — why | `docs/concept.md` |
+| Celery queue, beat entries, emails | `docs/install.md` |
+| Log lines, re-running a wave, final states | `docs/operations.md` |
 | Which test file covers what | `docs/testing.md` |
 | What changed and why | `CHANGELOG.md` |
 
@@ -55,5 +61,9 @@ src/django_stock_alerts/
 - `get_quantities` leaves out SKUs without stock data: a missing key is 0.
 - Throttles keep their fallback in `fallback_rate`, never in a class `rate` (DRF skips `get_rate()` then).
 - Settings are read at import: tests patch `django_stock_alerts.settings` attributes, not Django settings.
+- The status check under the row lock in `alert_service.send_alert` is the only idempotency rule of the alert: no
+  second flag. `EmailService` activates a language globally: one service per send, inside the task.
+- Celery has no autoreload: restart the worker after a task change; tests patch `send_alert.delay` /
+  `send_signup.delay` and run tasks with `.apply()` (eager retries).
 - `consent_bridge` uses `record_consent` only, against a non-marketing definition: newsletter lists never see
   these addresses.

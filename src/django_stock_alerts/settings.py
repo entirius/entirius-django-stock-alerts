@@ -25,6 +25,8 @@ WAITING_DAYS: int = getattr(settings, "STOCK_ALERTS_WAITING_DAYS", 180)
 ANONYMISE_DAYS: int = getattr(settings, "STOCK_ALERTS_ANONYMISE_DAYS", 30)
 # Send the "we will notify you" email.
 SIGNUP_EMAIL: bool = getattr(settings, "STOCK_ALERTS_SIGNUP_EMAIL", True)
+# Celery queue of the check, send and retention tasks (a fixed name: hosts route a worker to it).
+QUEUE = "stock_alerts"
 # Agreement definition the consent is recorded against in django_agreements; None switches the record off.
 AGREEMENT_SLUG: str | None = getattr(settings, "STOCK_ALERTS_AGREEMENT_SLUG", "stock-alerts")
 # Domain of the anonymised address token; the same setting django_leads and django_agreements read.

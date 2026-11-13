@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-"""The only writer of `Subscription`: save a request, cancel it.
+"""Saves a request and cancels it (the alert and retention services write their own states).
 
 The partial unique index on (channel, sku, email) of waiting rows is the only uniqueness guard; `subscribe` catches
 its race inside a savepoint and returns the row the other request saved. Addresses are compared and stored
